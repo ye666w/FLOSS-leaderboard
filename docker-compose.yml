@@ -27,6 +27,8 @@ services:
       DB_USER: postgres
       DB_PASSWORD: postgres
       DB_NAME: leaderboards
+      STEAM_API_KEY: ${STEAM_API_KEY}
+      FLOSS_APPID: ${FLOSS_APPID}
     ports:
       - "3000:3000"
 

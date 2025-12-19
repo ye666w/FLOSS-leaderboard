@@ -5,6 +5,7 @@ import {
   getPlayerRecord,
   submitRecord
 } from '../db/requests.js'
+import { checkSteamId } from './steamApi.js'
 
 const app = express()
 app.use(express.json())
@@ -50,20 +51,26 @@ app.get('/leaderboard/playerRank', async (req, res) => {
 
 app.post('/leaderboard/submit', async (req, res) => {
   try {
-		console.log(req)
-    const { steamId, levelId, time } = req.body
+    const { steamId, levelId, time } = req.body;
+
     if (!steamId || levelId === undefined || time === undefined) {
-			console.log('test')
-      return res.status(400).json({ error: 'steamId, levelId, time required' })
+      return res.status(400).json({ error: 'steamId, levelId, time required' });
     }
 
-    await submitRecord(steamId, parseInt(levelId), parseFloat(time))
-    res.json({ success: true })
+    const isSteamIdValid = await checkSteamId(steamId);
+
+    if (!isSteamIdValid) {
+      return res.status(400).json({ error: 'Invalid Steam ID or user does not own the app' });
+    }
+
+    await submitRecord(steamId, parseInt(levelId), parseFloat(time));
+    res.json({ success: true });
+
   } catch (err) {
-    console.error(err)
-    res.status(500).json({ error: 'Internal server error' })
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
-})
+});
 
 const PORT = process.env.PORT || 3000
 app.listen(PORT, () => {
