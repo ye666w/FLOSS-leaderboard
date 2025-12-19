@@ -5,72 +5,123 @@ import {
   getPlayerRecord,
   submitRecord
 } from '../db/requests.js'
-import { checkSteamId } from './steamApi.js'
+import {
+  authenticateSteamTicket,
+  createToken,
+  verifyToken
+} from './steamApi.js'
 
 const app = express()
 app.use(express.json())
 
+/* ---------- helpers ---------- */
+
+function clientError(res, status, message) {
+  return res.status(status).json({ success: false, error: message })
+}
+
+/* ---------- routes ---------- */
+
 app.get('/leaderboard/topFive', async (req, res) => {
   try {
-    const levelId = parseInt(req.query.levelId)
-    if (isNaN(levelId)) return res.status(400).json({ error: 'levelId is required' })
+    const levelId = Number(req.query.levelId)
+    if (!Number.isInteger(levelId)) {
+      return clientError(res, 400, 'levelId is required')
+    }
 
     const top5 = await getTop5(levelId)
-    res.json(top5)
+    res.json({ success: true, data: top5 })
   } catch (err) {
     console.error(err)
-    res.status(500).json({ error: 'Internal server error' })
+    clientError(res, 500, 'Failed to load leaderboard')
   }
 })
 
 app.get('/leaderboard/playerRecord', async (req, res) => {
   try {
     const { steamId, levelId } = req.query
-    if (!steamId || !levelId) return res.status(400).json({ error: 'steamId and levelId required' })
+    if (!steamId || !levelId) {
+      return clientError(res, 400, 'steamId and levelId required')
+    }
 
-    const time = await getPlayerRecord(steamId, parseInt(levelId))
-    res.json({ time })
+    const time = await getPlayerRecord(steamId, Number(levelId))
+    res.json({ success: true, time })
   } catch (err) {
     console.error(err)
-    res.status(500).json({ error: 'Internal server error' })
+    clientError(res, 500, 'Failed to load player record')
   }
 })
 
 app.get('/leaderboard/playerRank', async (req, res) => {
   try {
     const { steamId, levelId } = req.query
-    if (!steamId || !levelId) return res.status(400).json({ error: 'steamId and levelId required' })
+    if (!steamId || !levelId) {
+      return clientError(res, 400, 'steamId and levelId required')
+    }
 
-    const rank = await getPlayerRank(steamId, parseInt(levelId))
-    res.json({ rank })
+    const rank = await getPlayerRank(steamId, Number(levelId))
+    res.json({ success: true, rank })
   } catch (err) {
     console.error(err)
-    res.status(500).json({ error: 'Internal server error' })
+    clientError(res, 500, 'Failed to load player rank')
+  }
+})
+
+app.post('/auth', async (req, res) => {
+  try {
+    const { steamId, authSessionTicket } = req.body
+
+    if (!steamId || !authSessionTicket) {
+      return res.status(400).json({
+        success: false,
+        error: 'steamId and authSessionTicket required'
+      })
+    }
+
+    const authResult = await authenticateSteamTicket(
+      steamId,
+      authSessionTicket
+    )
+
+    if (!authResult.success) {
+      return res.status(401).json(authResult)
+    }
+
+    const token = await createToken(authResult.steamId)
+    res.json({ success: true, token })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({
+      success: false,
+      error: 'Authentication failed'
+    })
   }
 })
 
 app.post('/leaderboard/submit', async (req, res) => {
   try {
-    const { steamId, levelId, time } = req.body;
+    const { levelId, time, token } = req.body
 
-    if (!steamId || levelId === undefined || time === undefined) {
-      return res.status(400).json({ error: 'steamId, levelId, time required' });
+    if (!token || levelId === undefined || time === undefined) {
+      return clientError(res, 400, 'token, levelId and time required')
     }
 
-    const isSteamIdValid = await checkSteamId(steamId);
-
-    if (!isSteamIdValid) {
-      return res.status(400).json({ error: 'Invalid Steam ID or user does not own the app' });
+    if (typeof time !== 'number' || time <= 0) {
+      return clientError(res, 400, 'Invalid time value')
     }
 
-    await submitRecord(steamId, parseInt(levelId), parseFloat(time));
-    res.json({ success: true });
+    const authResult = await verifyToken(token)
+    if (!authResult.success) {
+      return clientError(res, 401, authResult.error)
+    }
 
+    await submitRecord(authResult.steamId, Number(levelId), time)
+    res.json({ success: true })
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error(err)
+    clientError(res, 500, 'Failed to submit record')
   }
-});
+})
 
 const PORT = process.env.PORT || 3000
 app.listen(PORT, () => {

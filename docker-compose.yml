@@ -29,6 +29,7 @@ services:
       DB_NAME: leaderboards
       STEAM_API_KEY: ${STEAM_API_KEY}
       FLOSS_APPID: ${FLOSS_APPID}
+      JWT_SECRET: ${JWT_SECRET}
     ports:
       - "3000:3000"
 
