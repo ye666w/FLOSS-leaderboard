@@ -100,14 +100,18 @@ app.post('/auth', async (req, res) => {
 
 app.post('/leaderboard/submit', async (req, res) => {
   try {
-    const { levelId, time, token } = req.body
+    const { levelId, steamName, time, token } = req.body
 
-    if (!token || levelId === undefined || time === undefined) {
-      return clientError(res, 400, 'token, levelId and time required')
+    if (!token || levelId === undefined || time === undefined || !steamName) {
+      return clientError(res, 400, 'token, levelId, steamName and time required')
     }
 
     if (typeof time !== 'number' || time <= 0) {
       return clientError(res, 400, 'Invalid time value')
+    }
+
+    if (typeof steamName !== 'string' || steamName.length > 64) {
+      return clientError(res, 400, 'Invalid steamName')
     }
 
     const authResult = await verifyToken(token)
@@ -115,7 +119,13 @@ app.post('/leaderboard/submit', async (req, res) => {
       return clientError(res, 401, authResult.error)
     }
 
-    await submitRecord(authResult.steamId, Number(levelId), time)
+    await submitRecord(
+      authResult.steamId,
+      steamName,
+      Number(levelId),
+      time
+    )
+
     res.json({ success: true })
   } catch (err) {
     console.error(err)

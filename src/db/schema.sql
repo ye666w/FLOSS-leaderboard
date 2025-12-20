@@ -2,6 +2,8 @@ CREATE TABLE IF NOT EXISTS leaderboard (
     id BIGSERIAL PRIMARY KEY,
 
     steam_id BIGINT NOT NULL,
+    steam_name TEXT NOT NULL,
+
     level_id INT NOT NULL,
     time INT NOT NULL CHECK (time > 0),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
