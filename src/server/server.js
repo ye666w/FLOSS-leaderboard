@@ -60,6 +60,11 @@ app.get('/leaderboard/playerRank', async (req, res) => {
     }
 
     const rank = await getPlayerRank(steamId, Number(levelId))
+    if (rank) {
+      rank.place = Number(rank.place)
+      rank.steam_id = rank.steam_id.toString()
+    }
+
     res.json({ success: true, rank })
   } catch (err) {
     console.error(err)
