@@ -24,24 +24,34 @@ export async function verifyAuthToken(steamId, token) {
     : { success: false }
 }
 
-export async function getTop5(levelId) {
+export async function getTop5(levelId, order = 'asc') {
   return await sql`
     SELECT steam_id, steam_name, time
     FROM leaderboard
     WHERE level_id = ${levelId}
-    ORDER BY time ASC
+    ORDER BY
+      CASE
+        WHEN ${order} = 'asc' THEN time
+        ELSE -time
+      END ASC
     LIMIT 5
   `
 }
 
-export async function getPlayerRank(steamId, levelId) {
+export async function getPlayerRank(steamId, levelId, order = 'asc') {
   const rows = await sql`
     SELECT steam_id, steam_name, time, place FROM (
       SELECT
         steam_id,
         steam_name,
         time,
-        RANK() OVER (ORDER BY time ASC) AS place
+        RANK() OVER (
+          ORDER BY
+            CASE
+              WHEN ${order} = 'asc' THEN time
+              ELSE -time
+            END ASC
+        ) AS place
       FROM leaderboard
       WHERE level_id = ${levelId}
     ) t
@@ -60,14 +70,25 @@ export async function getPlayerRecord(steamId, levelId) {
   return rows[0]?.time ?? null
 }
 
-export async function submitRecord(steamId, steamName, levelId, time) {
+export async function submitRecord(
+  steamId,
+  steamName,
+  levelId,
+  time,
+  order = 'asc'
+) {
   return await sql`
     INSERT INTO leaderboard (steam_id, steam_name, level_id, time)
     VALUES (${steamId}, ${steamName}, ${levelId}, ${time})
     ON CONFLICT (steam_id, level_id)
     DO UPDATE SET
       steam_name = EXCLUDED.steam_name,
-      time = LEAST(leaderboard.time, EXCLUDED.time),
+      time = CASE
+        WHEN ${order} = 'asc'
+          THEN LEAST(leaderboard.time, EXCLUDED.time)
+        ELSE
+          GREATEST(leaderboard.time, EXCLUDED.time)
+      END,
       updated_at = NOW()
   `
 }

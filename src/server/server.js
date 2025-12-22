@@ -20,16 +20,22 @@ function clientError(res, status, message) {
   return res.status(status).json({ success: false, error: message })
 }
 
+function parseOrder(order) {
+  return order === 'desc' ? 'desc' : 'asc'
+}
+
 /* ---------- routes ---------- */
 
 app.get('/leaderboard/topFive', async (req, res) => {
   try {
     const levelId = Number(req.query.levelId)
+    const order = parseOrder(req.query.order)
+
     if (!Number.isInteger(levelId)) {
       return clientError(res, 400, 'levelId is required')
     }
 
-    const top5 = await getTop5(levelId)
+    const top5 = await getTop5(levelId, order)
     res.json({ success: true, data: top5 })
   } catch (err) {
     console.error(err)
@@ -39,13 +45,19 @@ app.get('/leaderboard/topFive', async (req, res) => {
 
 app.get('/leaderboard/playerRecord', async (req, res) => {
   try {
-    const { steamId, levelId } = req.query
+    const { steamId, levelId, order } = req.query
+
     if (!steamId || !levelId) {
       return clientError(res, 400, 'steamId and levelId required')
     }
 
-    const time = await getPlayerRecord(steamId, Number(levelId))
-    res.json({ success: true, time })
+    const record = await getPlayerRecord(
+      steamId,
+      Number(levelId),
+      parseOrder(order)
+    )
+
+    res.json({ success: true, record })
   } catch (err) {
     console.error(err)
     clientError(res, 500, 'Failed to load player record')
@@ -54,12 +66,18 @@ app.get('/leaderboard/playerRecord', async (req, res) => {
 
 app.get('/leaderboard/playerRank', async (req, res) => {
   try {
-    const { steamId, levelId } = req.query
+    const { steamId, levelId, order } = req.query
+
     if (!steamId || !levelId) {
       return clientError(res, 400, 'steamId and levelId required')
     }
 
-    const rank = await getPlayerRank(steamId, Number(levelId))
+    const rank = await getPlayerRank(
+      steamId,
+      Number(levelId),
+      parseOrder(order)
+    )
+
     if (rank) {
       rank.place = Number(rank.place)
       rank.steam_id = rank.steam_id.toString()
@@ -105,18 +123,11 @@ app.post('/auth', async (req, res) => {
 
 app.post('/leaderboard/submit', async (req, res) => {
   try {
-    const { levelId, steamName, time, token } = req.body
+    const { levelId, steamName, time, token, order } = req.body
+    const sortOrder = parseOrder(order)
 
     if (!token || levelId === undefined || time === undefined || !steamName) {
       return clientError(res, 400, 'token, levelId, steamName and time required')
-    }
-
-    if (typeof time !== 'number' || time <= 0) {
-      return clientError(res, 400, 'Invalid time value')
-    }
-
-    if (typeof steamName !== 'string' || steamName.length > 64) {
-      return clientError(res, 400, 'Invalid steamName')
     }
 
     const authResult = await verifyToken(token)
@@ -128,7 +139,8 @@ app.post('/leaderboard/submit', async (req, res) => {
       authResult.steamId,
       steamName,
       Number(levelId),
-      time
+      time,
+      sortOrder
     )
 
     res.json({ success: true })
