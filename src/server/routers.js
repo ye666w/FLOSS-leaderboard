@@ -10,21 +10,13 @@ import {
   createToken,
   verifyToken
 } from './steamApi.js'
+import {
+  clientError,
+  parseOrder
+} from './helpers.js'
 
 const app = express()
 app.use(express.json())
-
-/* ---------- helpers ---------- */
-
-function clientError(res, status, message) {
-  return res.status(status).json({ success: false, error: message })
-}
-
-function parseOrder(order) {
-  return order === 'desc' ? 'desc' : 'asc'
-}
-
-/* ---------- routes ---------- */
 
 app.get('/leaderboard/topFive', async (req, res) => {
   try {
@@ -68,8 +60,8 @@ app.get('/leaderboard/playerRank', async (req, res) => {
   try {
     const { steamId, levelId, order } = req.query
 
-    if (!steamId || !levelId) {
-      return clientError(res, 400, 'steamId and levelId required')
+    if (!steamId || !levelId || !order) {
+      return clientError(res, 400, 'steamId, levelId, order required')
     }
 
     const rank = await getPlayerRank(
@@ -124,11 +116,12 @@ app.post('/auth', async (req, res) => {
 app.post('/leaderboard/submit', async (req, res) => {
   try {
     const { levelId, steamName, time, token, order } = req.body
-    const sortOrder = parseOrder(order)
-
-    if (!token || levelId === undefined || time === undefined || !steamName) {
-      return clientError(res, 400, 'token, levelId, steamName and time required')
+		
+    if (!token || levelId === undefined || time === undefined || !steamName || !order) {
+			return clientError(res, 400, 'token, levelId, steamName, time, order required')
     }
+
+		const sortOrder = parseOrder(order)
 
     const authResult = await verifyToken(token)
     if (!authResult.success) {
@@ -151,10 +144,7 @@ app.post('/leaderboard/submit', async (req, res) => {
 })
 
 app.get('/ping', (req, res) => {
-    res.status(200).send('ok');
-});
-
-const PORT = process.env.PORT || 3000
-app.listen(PORT, () => {
-  console.log(`Server started on port ${PORT}`)
+    res.status(200).send('ok')
 })
+
+app.listen(process.env.API_PORT)

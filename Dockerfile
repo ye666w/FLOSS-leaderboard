@@ -10,4 +10,4 @@ COPY src/db ./src/db
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "node src/server/server.js"]
+CMD ["sh", "-c", "node src/server/routers.js"]

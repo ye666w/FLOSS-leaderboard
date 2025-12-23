@@ -8,7 +8,7 @@ const TOKEN_TTL = '24h'
 const STEAM_API_URL =
   'https://api.steampowered.com/ISteamUserAuth/AuthenticateUserTicket/v1/'
 
-export async function authenticateSteamTicket(steamId, ticket) {
+export const authenticateSteamTicket = async (steamId, ticket) => {
   try {
     const url = new URL(STEAM_API_URL)
     url.searchParams.set('key', process.env.STEAM_API_KEY)
@@ -34,7 +34,7 @@ export async function authenticateSteamTicket(steamId, ticket) {
   }
 }
 
-export async function createToken(steamId) {
+export const createToken = async (steamId) => {
   const token = jwt.sign(
     { steamId },
     process.env.JWT_SECRET,
@@ -47,7 +47,7 @@ export async function createToken(steamId) {
   return token
 }
 
-export async function verifyToken(token) {
+export const verifyToken = async (token) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
 

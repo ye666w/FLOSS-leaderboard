@@ -4,5 +4,5 @@ node_modules
 # mac
 .DS_Store
 
-# server
+# server local files
 .env

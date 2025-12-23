@@ -25,6 +25,7 @@ services:
       DB_USER: postgres
       DB_PASSWORD: postgres
       DB_NAME: leaderboards
+      API_PORT: ${API_PORT}
       STEAM_API_KEY: ${STEAM_API_KEY}
       STEAM_APP_ID: ${STEAM_APP_ID}
       JWT_SECRET: ${JWT_SECRET}

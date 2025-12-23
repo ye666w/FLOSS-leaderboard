@@ -1,6 +1,6 @@
 import sql from './db.js'
 
-export async function saveAuthToken(steamId, token, expiresAt) {
+export const saveAuthToken = async (steamId, token, expiresAt) => {
   await sql`
     INSERT INTO tokens (steam_id, token, expires_at)
     VALUES (${steamId}, ${token}, ${expiresAt})
@@ -11,7 +11,7 @@ export async function saveAuthToken(steamId, token, expiresAt) {
   `
 }
 
-export async function verifyAuthToken(steamId, token) {
+export const verifyAuthToken = async (steamId, token) => {
   const rows = await sql`
     SELECT token
     FROM tokens
@@ -24,7 +24,7 @@ export async function verifyAuthToken(steamId, token) {
     : { success: false }
 }
 
-export async function getTop5(levelId, order = 'asc') {
+export const getTop5 = async (levelId, order = 'asc') => {
   return await sql`
     SELECT steam_id, steam_name, time
     FROM leaderboard
@@ -38,7 +38,7 @@ export async function getTop5(levelId, order = 'asc') {
   `
 }
 
-export async function getPlayerRank(steamId, levelId, order = 'asc') {
+export const getPlayerRank = async (steamId, levelId, order = 'asc') => {
   const rows = await sql`
     SELECT steam_id, steam_name, time, place FROM (
       SELECT
@@ -60,7 +60,7 @@ export async function getPlayerRank(steamId, levelId, order = 'asc') {
   return rows[0] ?? null
 }
 
-export async function getPlayerRecord(steamId, levelId) {
+export const getPlayerRecord = async (steamId, levelId) => {
   const rows = await sql`
     SELECT time
     FROM leaderboard
@@ -70,13 +70,13 @@ export async function getPlayerRecord(steamId, levelId) {
   return rows[0]?.time ?? null
 }
 
-export async function submitRecord(
+export const submitRecord = async (
   steamId,
   steamName,
   levelId,
   time,
   order = 'asc'
-) {
+) => {
   return await sql`
     INSERT INTO leaderboard (steam_id, steam_name, level_id, time)
     VALUES (${steamId}, ${steamName}, ${levelId}, ${time})
