@@ -1,7 +1,7 @@
 {
 	"type": "module",
 	"scripts": {
-		"start": "node server/server.js"
+		"start": "docker compose build && docker compose up -d"
 	},
 	"dependencies": {
 		"express": "^5.2.1",
