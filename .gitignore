@@ -6,3 +6,5 @@ node_modules
 
 # server local files
 .env
+origin.key
+origin.pem

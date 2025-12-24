@@ -30,7 +30,7 @@ services:
       STEAM_APP_ID: ${STEAM_APP_ID}
       JWT_SECRET: ${JWT_SECRET}
     ports:
-      - "3000:3000"
+      - "443:443"
 
 volumes:
   pgdata:

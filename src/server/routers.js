@@ -1,4 +1,7 @@
 import express from 'express'
+import https from 'https';
+import fs from 'fs';
+
 import {
   getTop5,
   getPlayerRank,
@@ -18,6 +21,11 @@ import {
 
 const app = express()
 app.use(express.json())
+
+const sslOptions = {
+  key: fs.readFileSync('./origin.key'),
+  cert: fs.readFileSync('./origin.pem')
+};
 
 app.post('/auth', async (req, res) => {
   try {
@@ -170,4 +178,4 @@ app.get('/ping', (req, res) => {
     res.status(200).send('ok')
 })
 
-app.listen(process.env.API_PORT)
+https.createServer(sslOptions, app).listen(process.env.API_PORT);
