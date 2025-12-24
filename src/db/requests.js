@@ -70,6 +70,41 @@ export const getPlayerRecord = async (steamId, levelId) => {
   return rows[0]?.time ?? null
 }
 
+export const getPlayerTopStatusByLevels = async (
+  steamId,
+  order = 'asc'
+) => {
+  const rows = await sql`
+    WITH top_per_level AS (
+      SELECT DISTINCT ON (level_id)
+        level_id,
+        steam_id AS top_steam_id
+      FROM leaderboard
+      ORDER BY
+        level_id,
+        CASE
+          WHEN ${order} = 'asc' THEN time
+          ELSE -time
+        END ASC
+    )
+    SELECT
+      l.level_id,
+      (t.top_steam_id = ${steamId}) AS is_top
+    FROM (
+      SELECT DISTINCT level_id
+      FROM leaderboard
+    ) l
+    LEFT JOIN top_per_level t
+      ON t.level_id = l.level_id
+    ORDER BY l.level_id
+  `
+
+  return rows.map(r => ({
+    levelId: r.level_id,
+    isTop: r.is_top
+  }))
+}
+
 export const submitRecord = async (
   steamId,
   steamName,

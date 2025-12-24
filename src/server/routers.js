@@ -3,6 +3,7 @@ import {
   getTop5,
   getPlayerRank,
   getPlayerRecord,
+	getPlayerTopStatusByLevels,
   submitRecord
 } from '../db/requests.js'
 import {
@@ -18,16 +19,46 @@ import {
 const app = express()
 app.use(express.json())
 
-app.get('/leaderboard/topFive', async (req, res) => {
+app.post('/auth', async (req, res) => {
   try {
-    const levelId = Number(req.query.levelId)
-    const order = parseOrder(req.query.order)
+    const { steamId, authSessionTicket } = req.body
 
-    if (!Number.isInteger(levelId)) {
-      return clientError(res, 400, 'levelId is required')
+    if (!steamId || !authSessionTicket) {
+      return res.status(400).json({
+        success: false,
+        error: 'steamId and authSessionTicket required'
+      })
     }
 
-    const top5 = await getTop5(levelId, order)
+    const authResult = await authenticateSteamTicket(
+      steamId,
+      authSessionTicket
+    )
+
+    if (!authResult.success) {
+      return res.status(401).json(authResult)
+    }
+
+    const token = await createToken(authResult.steamId)
+    res.json({ success: true, token })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({
+      success: false,
+      error: 'Authentication failed'
+    })
+  }
+})
+
+app.get('/leaderboard/topFive', async (req, res) => {
+  try {
+		const { levelId, order } = req.query
+		
+    if (!levelId || !req.query.order) {
+			return clientError(res, 400, 'levelId, order is required')
+    }
+
+    const top5 = await getTop5(levelId, parseOrder(order))
     res.json({ success: true, data: top5 })
   } catch (err) {
     console.error(err)
@@ -82,34 +113,26 @@ app.get('/leaderboard/playerRank', async (req, res) => {
   }
 })
 
-app.post('/auth', async (req, res) => {
+app.get('/leaderboard/playerTopStatus', async (req, res) => {
   try {
-    const { steamId, authSessionTicket } = req.body
+    const { steamId, order } = req.query
 
-    if (!steamId || !authSessionTicket) {
-      return res.status(400).json({
-        success: false,
-        error: 'steamId and authSessionTicket required'
-      })
+    if (!steamId) {
+      return clientError(res, 400, 'steamId required')
     }
 
-    const authResult = await authenticateSteamTicket(
+    const result = await getPlayerTopStatusByLevels(
       steamId,
-      authSessionTicket
+      parseOrder(order)
     )
 
-    if (!authResult.success) {
-      return res.status(401).json(authResult)
-    }
-
-    const token = await createToken(authResult.steamId)
-    res.json({ success: true, token })
+    res.json({
+      success: true,
+      data: result
+    })
   } catch (err) {
     console.error(err)
-    res.status(500).json({
-      success: false,
-      error: 'Authentication failed'
-    })
+    clientError(res, 500, 'Failed to load player top status')
   }
 })
 
