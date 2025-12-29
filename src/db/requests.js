@@ -38,6 +38,19 @@ export const getTop5 = async (levelId, order = 'asc') => {
   `
 }
 
+export const getAll = async (levelId, order = 'asc') => {
+  return await sql`
+    SELECT steam_id, steam_name, time
+    FROM leaderboard
+    WHERE level_id = ${levelId}
+    ORDER BY
+      CASE
+        WHEN ${order} = 'asc' THEN time
+        ELSE -time
+      END ASC
+  `
+}
+
 export const getPlayerRank = async (steamId, levelId, order = 'asc') => {
   const rows = await sql`
     SELECT steam_id, steam_name, time, place FROM (

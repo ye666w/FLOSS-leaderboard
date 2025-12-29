@@ -74,6 +74,22 @@ app.get('/leaderboard/topFive', async (req, res) => {
   }
 })
 
+app.get('/leaderboard/getAll', async (req, res) => {
+  try {
+		const { levelId, order } = req.query
+		
+    if (!levelId || !req.query.order) {
+			return clientError(res, 400, 'levelId, order is required')
+    }
+
+    const top5 = await getTop5(levelId, parseOrder(order))
+    res.json({ success: true, data: top5 })
+  } catch (err) {
+    console.error(err)
+    clientError(res, 500, 'Failed to load leaderboard')
+  }
+})
+
 app.get('/leaderboard/playerRecord', async (req, res) => {
   try {
     const { steamId, levelId, order } = req.query
