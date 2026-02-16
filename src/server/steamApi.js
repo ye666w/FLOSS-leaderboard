@@ -1,10 +1,6 @@
 import jwt from 'jsonwebtoken'
-import {
-  saveAuthToken,
-  verifyAuthToken
-} from '../db/requests.js'
 
-const TOKEN_TTL = '24h'
+const TOKEN_TTL = '12h'
 const STEAM_API_URL =
   'https://api.steampowered.com/ISteamUserAuth/AuthenticateUserTicket/v1/'
 
@@ -41,21 +37,12 @@ export const createToken = async (steamId) => {
     { expiresIn: TOKEN_TTL }
   )
 
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
-  await saveAuthToken(steamId, token, expiresAt)
-
   return token
 }
 
 export const verifyToken = async (token) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
-
-    const valid = await verifyAuthToken(decoded.steamId, token)
-    if (!valid.success) {
-      return { success: false, error: 'Invalid or expired token' }
-    }
-
     return { success: true, steamId: decoded.steamId }
   } catch (err) {
     if (err.name === 'TokenExpiredError') {
