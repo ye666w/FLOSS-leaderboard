@@ -14,14 +14,3 @@ CREATE TABLE IF NOT EXISTS leaderboard (
 
 CREATE INDEX idx_leaderboard_level_time
 ON leaderboard (level_id, time ASC);
-
-CREATE TABLE IF NOT EXISTS tokens (
-    id BIGSERIAL PRIMARY KEY,
-
-    steam_id BIGINT NOT NULL,
-    token TEXT NOT NULL,
-    expires_at TIMESTAMP NOT NULL,
-
-    CONSTRAINT tokens_unique_steam_id
-        UNIQUE (steam_id)
-);

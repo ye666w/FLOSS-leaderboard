@@ -1,29 +1,5 @@
 import sql from './db.js'
 
-export const saveAuthToken = async (steamId, token, expiresAt) => {
-  await sql`
-    INSERT INTO tokens (steam_id, token, expires_at)
-    VALUES (${steamId}, ${token}, ${expiresAt})
-    ON CONFLICT (steam_id)
-    DO UPDATE SET
-      token = EXCLUDED.token,
-      expires_at = EXCLUDED.expires_at
-  `
-}
-
-export const verifyAuthToken = async (steamId, token) => {
-  const rows = await sql`
-    SELECT token
-    FROM tokens
-    WHERE steam_id = ${steamId}
-      AND token = ${token}
-      AND expires_at > NOW()
-  `
-  return rows.length > 0
-    ? { success: true }
-    : { success: false }
-}
-
 export const getTop5 = async (levelId, order = 'asc') => {
   return await sql`
     SELECT steam_id, steam_name, time

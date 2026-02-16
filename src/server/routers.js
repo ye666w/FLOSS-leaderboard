@@ -4,6 +4,7 @@ import fs from 'fs';
 
 import {
   getTop5,
+	getAll,
   getPlayerRank,
   getPlayerRecord,
 	getPlayerTopStatusByLevels,
@@ -82,7 +83,7 @@ app.get('/leaderboard/getAll', async (req, res) => {
 			return clientError(res, 400, 'levelId, order is required')
     }
 
-    const top5 = await getTop5(levelId, parseOrder(order))
+    const top5 = await getAll(levelId, parseOrder(order))
     res.json({ success: true, data: top5 })
   } catch (err) {
     console.error(err)
