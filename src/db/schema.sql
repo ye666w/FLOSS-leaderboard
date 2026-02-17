@@ -13,4 +13,5 @@ CREATE TABLE IF NOT EXISTS leaderboard (
 );
 
 CREATE INDEX idx_leaderboard_level_time
-ON leaderboard (level_id, time ASC);
+ON leaderboard (level_id, time)
+INCLUDE (steam_id, steam_name);
