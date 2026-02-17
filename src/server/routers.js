@@ -1,20 +1,22 @@
 import express from 'express'
-import https from 'https';
-import fs from 'fs';
+import https from 'https'
+import fs from 'fs'
 
 import {
   getTop5,
-	getAll,
+  getAll,
   getPlayerRank,
   getPlayerRecord,
-	getPlayerTopStatusByLevels,
+  getPlayerTopStatusByLevels,
   submitRecord
 } from '../db/requests.js'
+
 import {
   authenticateSteamTicket,
   createToken,
   verifyToken
 } from './steamApi.js'
+
 import {
   clientError,
   parseOrder
@@ -26,17 +28,19 @@ app.use(express.json())
 const sslOptions = {
   key: fs.readFileSync('./origin.key'),
   cert: fs.readFileSync('./origin.pem')
-};
+}
+
+const parseLevelId = (value) => {
+  const num = Number(value)
+  return Number.isInteger(num) ? num : null
+}
 
 app.post('/auth', async (req, res) => {
   try {
     const { steamId, authSessionTicket } = req.body
 
     if (!steamId || !authSessionTicket) {
-      return res.status(400).json({
-        success: false,
-        error: 'steamId and authSessionTicket required'
-      })
+      return clientError(res, 400, 'steamId and authSessionTicket required')
     }
 
     const authResult = await authenticateSteamTicket(
@@ -45,30 +49,30 @@ app.post('/auth', async (req, res) => {
     )
 
     if (!authResult.success) {
-      return res.status(401).json(authResult)
+      return clientError(res, 401, authResult.error)
     }
 
     const token = await createToken(authResult.steamId)
+
     res.json({ success: true, token })
   } catch (err) {
     console.error(err)
-    res.status(500).json({
-      success: false,
-      error: 'Authentication failed'
-    })
+    clientError(res, 500, 'Authentication failed')
   }
 })
 
 app.get('/leaderboard/topFive', async (req, res) => {
   try {
-		const { levelId, order } = req.query
-		
-    if (!levelId || !req.query.order) {
-			return clientError(res, 400, 'levelId, order is required')
+    const levelId = parseLevelId(req.query.levelId)
+    const order = parseOrder(req.query.order)
+
+    if (!levelId || !order) {
+      return clientError(res, 400, 'levelId and order required')
     }
 
-    const top5 = await getTop5(levelId, parseOrder(order))
-    res.json({ success: true, data: top5 })
+    const data = await getTop5(levelId, order)
+
+    res.json({ success: true, data })
   } catch (err) {
     console.error(err)
     clientError(res, 500, 'Failed to load leaderboard')
@@ -77,14 +81,16 @@ app.get('/leaderboard/topFive', async (req, res) => {
 
 app.get('/leaderboard/getAll', async (req, res) => {
   try {
-		const { levelId, order } = req.query
-		
-    if (!levelId || !req.query.order) {
-			return clientError(res, 400, 'levelId, order is required')
+    const levelId = parseLevelId(req.query.levelId)
+    const order = parseOrder(req.query.order)
+
+    if (!levelId || !order) {
+      return clientError(res, 400, 'levelId and order required')
     }
 
-    const top5 = await getAll(levelId, parseOrder(order))
-    res.json({ success: true, data: top5 })
+    const data = await getAll(levelId, order)
+
+    res.json({ success: true, data })
   } catch (err) {
     console.error(err)
     clientError(res, 500, 'Failed to load leaderboard')
@@ -93,7 +99,8 @@ app.get('/leaderboard/getAll', async (req, res) => {
 
 app.get('/leaderboard/playerRecord', async (req, res) => {
   try {
-    const { steamId, levelId, order } = req.query
+    const steamId = req.query.steamId
+    const levelId = parseLevelId(req.query.levelId)
 
     if (!steamId || !levelId) {
       return clientError(res, 400, 'steamId and levelId required')
@@ -101,8 +108,7 @@ app.get('/leaderboard/playerRecord', async (req, res) => {
 
     const record = await getPlayerRecord(
       steamId,
-      Number(levelId),
-      parseOrder(order)
+      levelId
     )
 
     res.json({ success: true, record })
@@ -114,16 +120,18 @@ app.get('/leaderboard/playerRecord', async (req, res) => {
 
 app.get('/leaderboard/playerRank', async (req, res) => {
   try {
-    const { steamId, levelId, order } = req.query
+    const steamId = req.query.steamId
+    const levelId = parseLevelId(req.query.levelId)
+    const order = parseOrder(req.query.order)
 
     if (!steamId || !levelId || !order) {
-      return clientError(res, 400, 'steamId, levelId, order required')
+      return clientError(res, 400, 'steamId, levelId and order required')
     }
 
     const rank = await getPlayerRank(
       steamId,
-      Number(levelId),
-      parseOrder(order)
+      levelId,
+      order
     )
 
     if (rank) {
@@ -140,21 +148,19 @@ app.get('/leaderboard/playerRank', async (req, res) => {
 
 app.get('/leaderboard/playerTopStatus', async (req, res) => {
   try {
-    const { steamId, order } = req.query
+    const steamId = req.query.steamId
+    const order = parseOrder(req.query.order)
 
-    if (!steamId) {
-      return clientError(res, 400, 'steamId required')
+    if (!steamId || !order) {
+      return clientError(res, 400, 'steamId and order required')
     }
 
-    const result = await getPlayerTopStatusByLevels(
+    const data = await getPlayerTopStatusByLevels(
       steamId,
-      parseOrder(order)
+      order
     )
 
-    res.json({
-      success: true,
-      data: result
-    })
+    res.json({ success: true, data })
   } catch (err) {
     console.error(err)
     clientError(res, 500, 'Failed to load player top status')
@@ -164,14 +170,16 @@ app.get('/leaderboard/playerTopStatus', async (req, res) => {
 app.post('/leaderboard/submit', async (req, res) => {
   try {
     const { levelId, steamName, time, token, order } = req.body
-		
-    if (!token || levelId === undefined || time === undefined || !steamName || !order) {
-			return clientError(res, 400, 'token, levelId, steamName, time, order required')
+
+    const parsedLevel = parseLevelId(levelId)
+    const parsedOrder = parseOrder(order)
+
+    if (!token || !parsedLevel || !steamName || !time || !parsedOrder) {
+      return clientError(res, 400, 'token, levelId, steamName, time and order required')
     }
 
-		const sortOrder = parseOrder(order)
-
     const authResult = await verifyToken(token)
+
     if (!authResult.success) {
       return clientError(res, 401, authResult.error)
     }
@@ -179,9 +187,9 @@ app.post('/leaderboard/submit', async (req, res) => {
     await submitRecord(
       authResult.steamId,
       steamName,
-      Number(levelId),
-      time,
-      sortOrder
+      parsedLevel,
+      Number(time),
+      parsedOrder
     )
 
     res.json({ success: true })
@@ -191,8 +199,11 @@ app.post('/leaderboard/submit', async (req, res) => {
   }
 })
 
-app.get('/ping', (req, res) => {
-    res.status(200).send('ok')
+app.get('/ping', (_, res) => {
+  res.status(200).send('ok')
 })
 
-https.createServer(sslOptions, app).listen(process.env.API_PORT);
+https.createServer(sslOptions, app)
+  .listen(process.env.API_PORT, () => {
+    console.log(`API running on port ${process.env.API_PORT}`)
+})
