@@ -8,7 +8,8 @@ import {
   getPlayerRank,
   getPlayerRecord,
   getPlayerTopStatusByLevels,
-  submitRecord
+  submitRecord,
+	getGlobalTop5
 } from '../db/requests.js'
 
 import {
@@ -76,6 +77,17 @@ app.get('/leaderboard/topFive', async (req, res) => {
   } catch (err) {
     console.error(err)
     clientError(res, 500, 'Failed to load leaderboard')
+  }
+})
+
+app.get('/leaderboard/globalTopFive', async (req, res) => {
+  try {
+    const data = await getGlobalTop5()
+
+    res.json({ success: true, data })
+  } catch (err) {
+    console.error(err)
+    clientError(res, 500, 'Failed to load global top 5')
   }
 })
 
