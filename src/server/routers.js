@@ -9,7 +9,8 @@ import {
   getPlayerRecord,
   getPlayerTopStatusByLevels,
   submitRecord,
-	getGlobalTop5
+	getGlobalTop5,
+	getGlobalTopCount
 } from '../db/requests.js'
 
 import {
@@ -176,6 +177,23 @@ app.get('/leaderboard/playerTopStatus', async (req, res) => {
   } catch (err) {
     console.error(err)
     clientError(res, 500, 'Failed to load player top status')
+  }
+})
+
+app.get('/leaderboard/globalTopCount', async (req, res) => {
+  try {
+    const { steamId } = req.query
+
+    if (!steamId) {
+      return clientError(res, 400, 'steamId required')
+    }
+
+    const data = await getGlobalTopCount(steamId)
+
+    res.json({ success: true, data })
+  } catch (err) {
+    console.error(err)
+    clientError(res, 500, 'Failed to load player global top count')
   }
 })
 
