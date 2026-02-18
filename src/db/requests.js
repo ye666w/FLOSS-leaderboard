@@ -121,6 +121,25 @@ export const getPlayerTopStatusByLevels = async (
   }))
 }
 
+export const getGlobalTopCount = async (steamId) => {
+  return await sql`
+    SELECT
+      steam_id,
+      MAX(steam_name) AS steam_name,
+      COUNT(*) AS top1_count
+    FROM (
+      SELECT DISTINCT ON (level_id)
+        level_id,
+        steam_id,
+        steam_name
+      FROM leaderboard
+      ORDER BY level_id, time ASC
+    ) t
+    WHERE steam_id = ${steamId}
+    GROUP BY steam_id
+	`
+}
+
 export const submitRecord = async (
   steamId,
   steamName,
