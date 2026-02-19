@@ -18,25 +18,31 @@ export const getTop5 = async (levelId, order = 'asc') => {
   `
 }
 
-export const getGlobalTop5 = async (levelId, order = 'asc') => {
-  const direction = getDirection(order)
+export const getGlobalTop5 = async () => {
+  const infinityLevelId = 101
 
   return await sql`
     SELECT
-				steam_id,
-				MAX(steam_name) AS steam_name,
-				COUNT(*) AS top1_count
-		FROM (
-				SELECT DISTINCT ON (level_id)
-						level_id,
-						steam_id,
-						steam_name
-				FROM leaderboard
-				ORDER BY level_id, time ASC
-		) t
-		GROUP BY steam_id
-		ORDER BY top1_count DESC
-		LIMIT 5;
+      steam_id,
+      MAX(steam_name) AS steam_name,
+      COUNT(*) AS top1_count
+    FROM (
+      SELECT DISTINCT ON (level_id)
+        level_id,
+        steam_id,
+        steam_name
+      FROM leaderboard
+      ORDER BY
+        level_id,
+        CASE
+          WHEN level_id = ${infinityLevelId}
+          THEN time * -1
+          ELSE time
+        END ASC
+    ) t
+    GROUP BY steam_id
+    ORDER BY top1_count DESC
+    LIMIT 5
   `
 }
 
