@@ -2,7 +2,7 @@
 	"type": "module",
 	"scripts": {
 		"prod": "docker compose build && docker compose up -d",
-		"test": "docker compose -p leaderboard-test -f docker-compose.test.yml up -d"
+		"test": "docker compose -p leaderboard-test -f docker-compose.test.yml build && docker compose -p leaderboard-test -f docker-compose.test.yml up -d"
 	},
 	"dependencies": {
 		"express": "^5.2.1",

@@ -27,9 +27,22 @@ import {
 const app = express()
 app.use(express.json())
 
-const sslOptions = {
-  key: fs.readFileSync('./origin.key'),
-  cert: fs.readFileSync('./origin.pem')
+const port = process.env.API_PORT
+const isProd = process.env.STAGE === 'prod'
+
+if (isProd) {
+  const sslOptions = {
+    key: fs.readFileSync('./origin.key'),
+    cert: fs.readFileSync('./origin.pem')
+  }
+
+  https.createServer(sslOptions, app).listen(port, () => {
+    console.log(`API running in HTTPS mode on port ${port}`)
+  })
+} else {
+  app.listen(port, () => {
+    console.log(`API running in HTTP mode on port ${port}`)
+  })
 }
 
 const parseLevelId = (value) => {
@@ -231,9 +244,4 @@ app.post('/leaderboard/submit', async (req, res) => {
 
 app.get('/ping', (_, res) => {
   res.status(200).send('ok')
-})
-
-https.createServer(sslOptions, app)
-  .listen(process.env.API_PORT, () => {
-    console.log(`API running on port ${process.env.API_PORT}`)
 })
