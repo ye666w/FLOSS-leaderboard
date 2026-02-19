@@ -5,7 +5,7 @@ const sql = postgres({
   port: process.env.DB_PORT,
   username: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
-  database: 'leaderboards',
+  database: process.env.DB_NAME || 'leaderboards',
 
   max: 10,
   idle_timeout: 20,
