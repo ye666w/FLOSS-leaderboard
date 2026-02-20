@@ -30,6 +30,7 @@ services:
       STEAM_API_KEY: ${STEAM_API_KEY}
       STEAM_APP_ID: ${STEAM_APP_ID}
       JWT_SECRET: ${JWT_SECRET}
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
     ports:
       - "443:443"
 

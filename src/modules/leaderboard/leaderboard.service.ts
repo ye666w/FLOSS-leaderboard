@@ -1,4 +1,6 @@
 import { parseBigIntValue, parseOptionalPositiveInt, parseRequiredInt } from '../common/parsers.js'
+import { badRequestError, unauthorizedError } from '../common/service-errors.js'
+import type { ServiceResult } from '../common/service-result.types.js'
 import { verifyToken } from '../jwt/jwt.service.js'
 import {
   getPortalCountWithBestRecord as getPortalCountWithBestRecordRepo,
@@ -6,21 +8,16 @@ import {
   getRecordsForPlayer as getRecordsForPlayerRepo,
   submitRecord as submitRecordRepo
 } from './leaderboard.repository.js'
-import type { LevelRecordRow, PortalCountRow, PlayerRecordRow, RecordsDirection, ServiceError, SubmitRecordInput, ServiceResult, RecordsForLevelQuery, PortalCountQuery, RecordsForPlayerQuery } from './leaderboard.types.js'
-
-const badRequest = (message: string): ServiceError => ({
-  ok: false,
-  status: 400,
-  code: 'BAD_REQUEST',
-  message
-})
-
-const unauthorized = (message: string): ServiceError => ({
-  ok: false,
-  status: 401,
-  code: 'UNAUTHORIZED',
-  message
-})
+import type {
+  LevelRecordRow,
+  PortalCountRow,
+  PlayerRecordRow,
+  RecordsDirection,
+  SubmitRecordInput,
+  RecordsForLevelQuery,
+  PortalCountQuery,
+  RecordsForPlayerQuery
+} from './leaderboard.types.js'
 
 const parseDirection = (value: unknown): RecordsDirection | null => {
   if (value === 'asc' || value === 'desc') {
@@ -36,7 +33,7 @@ export const submitRecord = async (
   const { token, steamId, steamName, recordsDirection } = input
 
   if (!token || !verifyToken(token)) {
-    return unauthorized('Invalid token')
+    return unauthorizedError('Invalid token')
   }
 
   const steamIdParsed = parseBigIntValue(steamId)
@@ -52,61 +49,69 @@ export const submitRecord = async (
     score == null ||
     score <= 0
   ) {
-    return badRequest('token, steamId, steamName, levelId, seed and positive score are required')
+    return badRequestError('token, steamId, steamName, levelId, seed and positive score are required')
   }
 
   const dir = recordsDirection ?? 'asc'
   if (dir !== 'asc' && dir !== 'desc') {
-    return badRequest('recordsDirection must be asc or desc')
+    return badRequestError('recordsDirection must be asc or desc')
   }
 
   const result = await submitRecordRepo(steamIdParsed, steamName, levelId, seed, score, dir)
   return { ok: true, data: { result } }
 }
 
-export const getRecordsForLevel = async (
-  query: RecordsForLevelQuery
-): Promise<ServiceResult<{ records: LevelRecordRow[] }>> => {
+export const getRecordsForLevel = async <WithSteamId extends boolean = false>(
+  query: RecordsForLevelQuery,
+  includeSteamId = false as WithSteamId
+): Promise<ServiceResult<{ records: LevelRecordRow<WithSteamId>[] }>> => {
   const levelId = Number(query.levelId)
   const recordsDirection = parseDirection(query.recordsDirection)
   const recordsLimit = parseOptionalPositiveInt(query.recordsLimit)
   const steamIdCandidate = query.steamId == null ? undefined : parseBigIntValue(query.steamId)
 
   if (!Number.isInteger(levelId) || levelId <= 0 || recordsDirection == null) {
-    return badRequest('levelId and recordsDirection (asc|desc) are required')
+    return badRequestError('levelId and recordsDirection (asc|desc) are required')
   }
 
   if (recordsLimit === null) {
-    return badRequest('recordsLimit must be a positive integer')
+    return badRequestError('recordsLimit must be a positive integer')
   }
 
   if (query.steamId != null && steamIdCandidate == null) {
-    return badRequest('steamId must be a valid bigint')
+    return badRequestError('steamId must be a valid bigint')
   }
 
   const steamId = steamIdCandidate ?? undefined
-  const records = await getRecordsForLevelRepo(levelId, recordsDirection, recordsLimit, steamId)
+  const records = await getRecordsForLevelRepo(
+    levelId,
+    recordsDirection,
+    recordsLimit,
+    steamId,
+    includeSteamId
+  )
   return { ok: true, data: { records } }
 }
 
-export const getPortalCountWithBestRecord = async (
-  query: PortalCountQuery
-): Promise<ServiceResult<{ records: PortalCountRow[] }>> => {
+export const getPortalCountWithBestRecord = async <WithSteamId extends boolean = false>(
+  query: PortalCountQuery,
+  includeSteamId = false as WithSteamId
+): Promise<ServiceResult<{ records: PortalCountRow<WithSteamId>[] }>> => {
   const recordsDirection = parseDirection(query.recordsDirection)
   const portalDirection = parseDirection(query.portalDirection)
   const recordsLimit = parseOptionalPositiveInt(query.recordsLimit)
   const steamIdCandidate = query.steamId == null ? undefined : parseBigIntValue(query.steamId)
 
   if (recordsDirection == null || portalDirection == null) {
-    return badRequest('recordsDirection and portalDirection must be asc or desc')
+    return badRequestError('recordsDirection and portalDirection must be asc or desc')
   }
 
   if (recordsLimit === null) {
-    return badRequest('recordsLimit must be a positive integer')
+    return badRequestError('recordsLimit must be a positive integer')
   }
 
   if (query.steamId != null && steamIdCandidate == null) {
-    return badRequest('steamId must be a valid bigint')
+    return badRequestError('steamId must be a valid bigint')
   }
 
   const steamId = steamIdCandidate ?? undefined
@@ -114,26 +119,28 @@ export const getPortalCountWithBestRecord = async (
     recordsDirection,
     portalDirection,
     recordsLimit,
-    steamId
+    steamId,
+    includeSteamId
   )
   return { ok: true, data: { records } }
 }
 
-export const getRecordsForPlayer = async (
-  query: RecordsForPlayerQuery
-): Promise<ServiceResult<{ records: PlayerRecordRow[] }>> => {
+export const getRecordsForPlayer = async <WithSteamId extends boolean = false>(
+  query: RecordsForPlayerQuery,
+  includeSteamId = false as WithSteamId
+): Promise<ServiceResult<{ records: PlayerRecordRow<WithSteamId>[] }>> => {
   const steamId = parseBigIntValue(query.steamId)
   const recordsDirection = parseDirection(query.recordsDirection)
   const recordsLimit = parseOptionalPositiveInt(query.recordsLimit)
 
   if (steamId == null || recordsDirection == null) {
-    return badRequest('steamId and recordsDirection (asc|desc) are required')
+    return badRequestError('steamId and recordsDirection (asc|desc) are required')
   }
 
   if (recordsLimit === null) {
-    return badRequest('recordsLimit must be a positive integer')
+    return badRequestError('recordsLimit must be a positive integer')
   }
 
-  const records = await getRecordsForPlayerRepo(steamId, recordsDirection, recordsLimit)
+  const records = await getRecordsForPlayerRepo(steamId, recordsDirection, recordsLimit, includeSteamId)
   return { ok: true, data: { records } }
 }
