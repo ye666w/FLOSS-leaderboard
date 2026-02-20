@@ -1,37 +1,27 @@
 export type RecordsDirection = 'asc' | 'desc'
 
-export type LevelRecordRow = {
+type SteamIdentity<WithSteamId extends boolean> = WithSteamId extends true
+  ? { steamId: string }
+  : {}
+
+export type LevelRecordRow<WithSteamId extends boolean = false> = {
   place: number
   steamName: string
   seed: number
   score: number
-}
+} & SteamIdentity<WithSteamId>
 
-export type PlayerRecordRow = {
+export type PlayerRecordRow<WithSteamId extends boolean = false> = {
   levelId: number
   seed: number
   score: number
-}
+} & SteamIdentity<WithSteamId>
 
-export type PortalCountRow = {
+export type PortalCountRow<WithSteamId extends boolean = false> = {
   place: number
   steamName: string
   portalCount: number
-}
-
-export type ServiceError = {
-  ok: false
-  status: number
-  code: string
-  message: string
-}
-
-export type ServiceSuccess<T> = {
-  ok: true
-  data: T
-}
-
-export type ServiceResult<T> = ServiceSuccess<T> | ServiceError
+} & SteamIdentity<WithSteamId>
 
 export type SubmitRecordInput = {
   token?: string

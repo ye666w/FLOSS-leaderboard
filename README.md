@@ -11,7 +11,8 @@ DB_PASSWORD=
 STEAM_APP_ID=4003010
 STEAM_API_KEY=
 JWT_SECRET=
+ADMIN_API_KEY=
 ```
 
 - `STEAM_APP_ID` and `STEAM_API_KEY` are obtained from Steamworks.
-- Other fields can be derived from your environment, but secrets (`DB_PASSWORD`, `JWT_SECRET`) must be strong and securely generated.
+- Other fields can be derived from your environment, but secrets (`DB_PASSWORD`, `JWT_SECRET`, `ADMIN_API_KEY`) must be strong and securely generated.
