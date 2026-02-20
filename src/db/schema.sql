@@ -1,17 +1,24 @@
-CREATE TABLE IF NOT EXISTS leaderboard (
-    id BIGSERIAL PRIMARY KEY,
-
-    steam_id BIGINT NOT NULL,
-    steam_name TEXT NOT NULL,
-
-    level_id INT NOT NULL,
-    time INT NOT NULL CHECK (time > 0),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-
-    CONSTRAINT leaderboard_unique_player_level
-        UNIQUE (steam_id, level_id)
+CREATE TABLE IF NOT EXISTS players (
+    steamId BIGINT PRIMARY KEY,
+    steamName TEXT NOT NULL,
+    isBanned BOOLEAN DEFAULT FALSE,
+    registeredAt TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_leaderboard_level_time
-ON leaderboard (level_id, time)
-INCLUDE (steam_id, steam_name);
+CREATE TABLE IF NOT EXISTS records (
+    steamId BIGINT NOT NULL,
+    levelId INT NOT NULL,
+    seed INT NOT NULL,
+    score INT NOT NULL CHECK (score > 0),
+    updatedAt TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    PRIMARY KEY (steamId, levelId),
+
+    FOREIGN KEY (steamId)
+        REFERENCES players(steamId)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX idx_records_level_score
+ON records (levelId, score)
+INCLUDE (steamId);
