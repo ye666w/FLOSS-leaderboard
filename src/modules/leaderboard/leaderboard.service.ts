@@ -1,7 +1,7 @@
 import { parseBigIntValue, parseOptionalPositiveInt, parseRequiredInt } from '../common/parsers.js'
-import { badRequestError, unauthorizedError } from '../common/service-errors.js'
+import { badRequestError, tokenExpiredError, tokenInvalidError } from '../common/service-errors.js'
 import type { ServiceResult } from '../common/service-result.types.js'
-import { verifyToken } from '../jwt/jwt.service.js'
+import { verifyTokenDetailed } from '../jwt/jwt.service.js'
 import {
   getPortalCountWithBestRecord as getPortalCountWithBestRecordRepo,
   getRecordsForLevel as getRecordsForLevelRepo,
@@ -32,8 +32,17 @@ export const submitRecord = async (
 ): Promise<ServiceResult<{ result: 'ok' }>> => {
   const { token, steamId, steamName, recordsDirection } = input
 
-  if (!token || !verifyToken(token)) {
-    return unauthorizedError('Invalid token')
+  if (!token) {
+    return tokenInvalidError('Missing token')
+  }
+
+  const tokenStatus = verifyTokenDetailed(token)
+  if (tokenStatus === 'expired') {
+    return tokenExpiredError('Token expired')
+  }
+
+  if (tokenStatus === 'invalid') {
+    return tokenInvalidError('Invalid token')
   }
 
   const steamIdParsed = parseBigIntValue(steamId)

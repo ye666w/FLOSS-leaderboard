@@ -1,7 +1,15 @@
 services:
   api:
+    build:
+      target: dev
+    command: npx tsx watch src/server.ts
+    volumes:
+      - ./:/app
+      - /app/node_modules
     ports:
       - "3000:3000"
     environment:
       SSL: false
       API_PORT: 3000
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "300"

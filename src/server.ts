@@ -5,12 +5,13 @@ import { authRouter } from './modules/auth/auth.routes.js'
 import { leaderboardAdminRouter } from './modules/leaderboard/admin/admin.routes.js'
 import { leaderboardRouter } from './modules/leaderboard/leaderboard.routes.js'
 import { sendError } from './modules/common/http-response.js'
+import { requireSupportedClientVersion } from './modules/client-version/client-version.middleware.js'
 import { systemRouter } from './modules/system/system.routes.js'
 
 const app = express()
 app.use(express.json())
-app.use(authRouter)
-app.use(leaderboardRouter)
+app.use(requireSupportedClientVersion, authRouter)
+app.use(requireSupportedClientVersion, leaderboardRouter)
 app.use(leaderboardAdminRouter)
 app.use(systemRouter)
 

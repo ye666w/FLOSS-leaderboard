@@ -2,11 +2,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build",
-		"dev:down": "docker compose -f docker-compose.yml -f docker-compose.dev.yml down",
-		"dev:clean": "docker compose -f docker-compose.yml -f docker-compose.dev.yml down -v",
-		"prod": "docker compose up --build -d",
-		"prod:down": "docker compose down",
-		"start": "docker compose build && docker compose up -d"
+		"prod": "COMPOSE_PARALLEL_LIMIT=1 DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 nice -n 10 docker compose build -q -m 512m api && docker compose up -d --no-deps --force-recreate api"
 	},
 	"dependencies": {
 		"express": "^5.1.0",
@@ -20,6 +16,7 @@
 		"@types/node": "^25.3.0",
 		"ts-node": "^10.9.2",
 		"ts-node-dev": "^2.0.0",
+		"tsx": "^4.21.0",
 		"typescript": "^5.9.3"
 	}
 }

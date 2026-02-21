@@ -20,11 +20,17 @@ export const createToken = (payload: TokenPayload): string =>
     expiresIn: TOKEN_TTL
   })
 
-export const verifyToken = (token: string): boolean => {
+export type TokenVerificationResult = 'valid' | 'expired' | 'invalid'
+
+export const verifyTokenDetailed = (token: string): TokenVerificationResult => {
   try {
     jwt.verify(token, getJwtSecret(), { algorithms: [JWT_ALGORITHM] })
-    return true
-  } catch {
-    return false
+    return 'valid'
+  } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      return 'expired'
+    }
+
+    return 'invalid'
   }
 }

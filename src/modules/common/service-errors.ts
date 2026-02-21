@@ -17,5 +17,11 @@ export const badRequestError = (message: string): ServiceError<400, 'BAD_REQUEST
 export const unauthorizedError = (message: string): ServiceError<401, 'UNAUTHORIZED'> =>
   createServiceError(401, 'UNAUTHORIZED', message)
 
+export const tokenExpiredError = (message: string): ServiceError<401, 'TOKEN_EXPIRED'> =>
+  createServiceError(401, 'TOKEN_EXPIRED', message)
+
+export const tokenInvalidError = (message: string): ServiceError<401, 'TOKEN_INVALID'> =>
+  createServiceError(401, 'TOKEN_INVALID', message)
+
 export const internalError = (message: string): ServiceError<500, 'INTERNAL_ERROR'> =>
   createServiceError(500, 'INTERNAL_ERROR', message)
