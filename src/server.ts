@@ -4,16 +4,17 @@ import fs from 'fs'
 import { authRouter } from './modules/auth/auth.routes.js'
 import { leaderboardAdminRouter } from './modules/leaderboard/admin/admin.routes.js'
 import { leaderboardRouter } from './modules/leaderboard/leaderboard.routes.js'
-import { sendError } from './modules/common/http-response.js'
+import {sendError, sendSuccess} from './modules/common/http-response.js'
 import { requireSupportedClientVersion } from './modules/client-version/client-version.middleware.js'
-import { systemRouter } from './modules/system/system.routes.js'
 
 const app = express()
 app.use(express.json())
+
+app.get('/ping', (_req, res) => sendSuccess(res, { message: 'pong' }))
+
 app.use(requireSupportedClientVersion, authRouter)
 app.use(requireSupportedClientVersion, leaderboardRouter)
 app.use(leaderboardAdminRouter)
-app.use(systemRouter)
 
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   const message = error instanceof Error ? error.message : 'Internal server error'
