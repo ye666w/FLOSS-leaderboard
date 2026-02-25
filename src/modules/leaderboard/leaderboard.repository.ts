@@ -144,43 +144,45 @@ export async function getRecordsForLevel<WithSteamId extends boolean = false>(
 }
 
 export async function getRecordsForPlayer<WithSteamId extends boolean = false>(
-  steamId: bigint,
-  recordsDirection: RecordsDirection,
-  recordsLimit?: number,
-  includeSteamId = false as WithSteamId
+    steamId: bigint,
+    recordsDirection: RecordsDirection,
+    recordsLimit?: number,
+    includeSteamId = false as WithSteamId
 ): Promise<PlayerRecordRow<WithSteamId>[]> {
   const dir = orderDir(recordsDirection)
   const steamIdParam = steamId.toString()
   const steamColumn = includeSteamId ? sql`r.steamId AS "steamId",` : sql``
 
-  if (recordsLimit == null) {
-    return await sql<PlayerRecordRow<WithSteamId>[]>`
+  const query = (limitSql: any) => sql<PlayerRecordRow<WithSteamId>[]>`
+    WITH best_per_level AS (
       SELECT
-        ${steamColumn}
-        r.levelId AS "levelId",
-        r.seed AS seed,
-        r.score AS score
-      FROM records r
-      JOIN players p ON p.steamId = r.steamId
-      WHERE r.steamId = ${steamIdParam}
-        AND p.isBanned = FALSE
-      ORDER BY r.score ${dir}, r.updatedAt ASC, r.levelId ASC
-    `
-  }
-
-  return await sql<PlayerRecordRow<WithSteamId>[]>`
+        r2.levelId AS "levelId",
+        CASE
+          WHEN r2.levelId = 101 THEN MAX(r2.score)
+          ELSE MIN(r2.score)
+        END AS "bestScore"
+      FROM records r2
+      JOIN players p2 ON p2.steamId = r2.steamId
+      WHERE p2.isBanned = FALSE
+      GROUP BY r2.levelId
+    )
     SELECT
       ${steamColumn}
       r.levelId AS "levelId",
-      r.seed AS seed,
-      r.score AS score
+      r.seed AS "seed",
+      r.score AS "score",
+      (r.score = b."bestScore") AS "isTop"
     FROM records r
     JOIN players p ON p.steamId = r.steamId
+    JOIN best_per_level b ON b."levelId" = r.levelId
     WHERE r.steamId = ${steamIdParam}
       AND p.isBanned = FALSE
     ORDER BY r.score ${dir}, r.updatedAt ASC, r.levelId ASC
-    LIMIT ${recordsLimit}
+    ${limitSql}
   `
+
+  if (recordsLimit == null) return await query(sql``)
+  return await query(sql`LIMIT ${recordsLimit}`)
 }
 
 export async function getPortalCountWithBestRecord<WithSteamId extends boolean = false>(
