@@ -1,7 +1,7 @@
 import { parseBigIntValue, parseOptionalPositiveInt, parseRequiredInt } from '../common/parsers.js'
 import { badRequestError, unauthorizedError } from '../common/service-errors.js'
 import type { ServiceResult } from '../common/service-result.types.js'
-import { verifyToken } from '../jwt/jwt.service.js'
+import { verifyAndDecodeToken } from '../jwt/jwt.service.js'
 import {
   getPortalCountWithBestRecord as getPortalCountWithBestRecordRepo,
   getRecordsForLevel as getRecordsForLevelRepo,
@@ -32,17 +32,24 @@ export const submitRecord = async (
 ): Promise<ServiceResult<{ result: 'ok' }>> => {
   const { token, steamId, steamName, recordsDirection } = input
 
-  if (!token || !verifyToken(token)) {
+  if (!token) {
     return unauthorizedError('Invalid token')
   }
 
-  const steamIdParsed = parseBigIntValue(steamId)
+  const tokenPayload = verifyAndDecodeToken(token)
+  if (!tokenPayload) {
+    return unauthorizedError('Invalid token')
+  }
+
+  const steamIdParsed = parseBigIntValue(tokenPayload.steamId)
+  const requestSteamIdParsed = parseBigIntValue(steamId)
   const levelId = parseRequiredInt(input.levelId)
   const seed = parseRequiredInt(input.seed)
   const score = parseRequiredInt(input.score)
 
   if (
     steamIdParsed == null ||
+    requestSteamIdParsed == null ||
     !steamName ||
     levelId == null ||
     seed == null ||
@@ -52,12 +59,16 @@ export const submitRecord = async (
     return badRequestError('token, steamId, steamName, levelId, seed and positive score are required')
   }
 
+  if (steamIdParsed !== requestSteamIdParsed) {
+    return unauthorizedError('steamId does not match token')
+  }
+
   const dir = recordsDirection ?? 'asc'
   if (dir !== 'asc' && dir !== 'desc') {
     return badRequestError('recordsDirection must be asc or desc')
   }
 
-  const result = await submitRecordRepo(steamIdParsed, steamName, levelId, seed, score, dir)
+  const result = await submitRecordRepo(steamIdParsed, steamName, levelId, seed, score)
   return { ok: true, data: { result } }
 }
 
