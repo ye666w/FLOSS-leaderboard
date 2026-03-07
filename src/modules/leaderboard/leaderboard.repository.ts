@@ -8,13 +8,14 @@ import type {
 
 const orderDir = (dir: RecordsDirection) => (dir === 'desc' ? sql.unsafe('DESC') : sql.unsafe('ASC'))
 
+const isDescendingLevel = (levelId: number) => levelId === 101
+
 export async function submitRecord(
   steamId: bigint,
   steamName: string,
   levelId: number,
   seed: number,
-  score: number,
-  recordsDirection: RecordsDirection = 'asc'
+  score: number
 ): Promise<'ok'> {
   const steamIdParam = steamId.toString()
 
@@ -25,29 +26,20 @@ export async function submitRecord(
     DO UPDATE SET steamName = EXCLUDED.steamName
   `
 
-  if (recordsDirection === 'asc') {
-    await sql`
-      INSERT INTO records (steamId, levelId, seed, score)
-      VALUES (${steamIdParam}, ${levelId}, ${seed}, ${score})
-      ON CONFLICT (steamId, levelId)
-      DO UPDATE SET
-        seed = EXCLUDED.seed,
-        score = EXCLUDED.score,
-        updatedAt = NOW()
-      WHERE EXCLUDED.score < records.score
-    `
-  } else {
-    await sql`
-      INSERT INTO records (steamId, levelId, seed, score)
-      VALUES (${steamIdParam}, ${levelId}, ${seed}, ${score})
-      ON CONFLICT (steamId, levelId)
-      DO UPDATE SET
-        seed = EXCLUDED.seed,
-        score = EXCLUDED.score,
-        updatedAt = NOW()
-      WHERE EXCLUDED.score > records.score
-    `
-  }
+  const betterScoreCondition = isDescendingLevel(levelId)
+    ? sql`EXCLUDED.score > records.score`
+    : sql`EXCLUDED.score < records.score`
+
+  await sql`
+    INSERT INTO records (steamId, levelId, seed, score)
+    VALUES (${steamIdParam}, ${levelId}, ${seed}, ${score})
+    ON CONFLICT (steamId, levelId)
+    DO UPDATE SET
+      seed = EXCLUDED.seed,
+      score = EXCLUDED.score,
+      updatedAt = NOW()
+    WHERE ${betterScoreCondition}
+  `
 
   return 'ok'
 }
@@ -144,43 +136,45 @@ export async function getRecordsForLevel<WithSteamId extends boolean = false>(
 }
 
 export async function getRecordsForPlayer<WithSteamId extends boolean = false>(
-  steamId: bigint,
-  recordsDirection: RecordsDirection,
-  recordsLimit?: number,
-  includeSteamId = false as WithSteamId
+    steamId: bigint,
+    recordsDirection: RecordsDirection,
+    recordsLimit?: number,
+    includeSteamId = false as WithSteamId
 ): Promise<PlayerRecordRow<WithSteamId>[]> {
   const dir = orderDir(recordsDirection)
   const steamIdParam = steamId.toString()
   const steamColumn = includeSteamId ? sql`r.steamId AS "steamId",` : sql``
 
-  if (recordsLimit == null) {
-    return await sql<PlayerRecordRow<WithSteamId>[]>`
+  const query = (limitSql: any) => sql<PlayerRecordRow<WithSteamId>[]>`
+    WITH best_per_level AS (
       SELECT
-        ${steamColumn}
-        r.levelId AS "levelId",
-        r.seed AS seed,
-        r.score AS score
-      FROM records r
-      JOIN players p ON p.steamId = r.steamId
-      WHERE r.steamId = ${steamIdParam}
-        AND p.isBanned = FALSE
-      ORDER BY r.score ${dir}, r.updatedAt ASC, r.levelId ASC
-    `
-  }
-
-  return await sql<PlayerRecordRow<WithSteamId>[]>`
+        r2.levelId AS "levelId",
+        CASE
+          WHEN r2.levelId = 101 THEN MAX(r2.score)
+          ELSE MIN(r2.score)
+        END AS "bestScore"
+      FROM records r2
+      JOIN players p2 ON p2.steamId = r2.steamId
+      WHERE p2.isBanned = FALSE
+      GROUP BY r2.levelId
+    )
     SELECT
       ${steamColumn}
       r.levelId AS "levelId",
-      r.seed AS seed,
-      r.score AS score
+      r.seed AS "seed",
+      r.score AS "score",
+      (r.score = b."bestScore") AS "isTop"
     FROM records r
     JOIN players p ON p.steamId = r.steamId
+    JOIN best_per_level b ON b."levelId" = r.levelId
     WHERE r.steamId = ${steamIdParam}
       AND p.isBanned = FALSE
     ORDER BY r.score ${dir}, r.updatedAt ASC, r.levelId ASC
-    LIMIT ${recordsLimit}
+    ${limitSql}
   `
+
+  if (recordsLimit == null) return await query(sql``)
+  return await query(sql`LIMIT ${recordsLimit}`)
 }
 
 export async function getPortalCountWithBestRecord<WithSteamId extends boolean = false>(
@@ -190,11 +184,14 @@ export async function getPortalCountWithBestRecord<WithSteamId extends boolean =
   steamId?: bigint,
   includeSteamId = false as WithSteamId
 ): Promise<PortalCountRow<WithSteamId>[]> {
-  const recordsDir = orderDir(recordsDirection)
   const portalDir = orderDir(portalDirection)
+  const recordsSign = recordsDirection === 'asc' ? 1 : -1
+  const invertedLevelId = 101
+
   const selectColumns = includeSteamId
     ? sql`place, "steamId", "steamName", "portalCount"`
     : sql`place, "steamName", "portalCount"`
+
   const rankingCte = sql`
     WITH level_ranked AS (
       SELECT
@@ -202,10 +199,18 @@ export async function getPortalCountWithBestRecord<WithSteamId extends boolean =
         r.steamId AS "steamId",
         p.steamName AS "steamName",
         r.score AS "score",
+        (
+          r.score * ${recordsSign} * (CASE WHEN r.levelId = ${invertedLevelId} THEN -1 ELSE 1 END)
+        ) AS "sortScore",
         r.updatedAt AS "updatedAt",
         ROW_NUMBER() OVER (
           PARTITION BY r.levelId
-          ORDER BY r.score ${recordsDir}, r.updatedAt ASC, r.steamId ASC
+          ORDER BY
+            (
+              r.score * ${recordsSign} * (CASE WHEN r.levelId = ${invertedLevelId} THEN -1 ELSE 1 END)
+            ) ASC,
+            r.updatedAt ASC,
+            r.steamId ASC
         ) AS "levelPlace"
       FROM records r
       JOIN players p ON p.steamId = r.steamId
@@ -216,6 +221,7 @@ export async function getPortalCountWithBestRecord<WithSteamId extends boolean =
         "steamId",
         "steamName",
         "score",
+        "sortScore",
         "updatedAt"
       FROM level_ranked
       WHERE "levelPlace" = 1
@@ -225,7 +231,7 @@ export async function getPortalCountWithBestRecord<WithSteamId extends boolean =
         "steamId",
         "steamName",
         COUNT(*)::INT AS "portalCount",
-        SUM("score") AS "totalScore",
+        SUM("sortScore") AS "totalScore",
         MAX("updatedAt") AS "lastUpdated"
       FROM leaders
       GROUP BY "steamId", "steamName"
@@ -233,7 +239,11 @@ export async function getPortalCountWithBestRecord<WithSteamId extends boolean =
     ranked AS (
       SELECT
         ROW_NUMBER() OVER (
-          ORDER BY "portalCount" ${portalDir}, "totalScore" ${recordsDir}, "lastUpdated" ASC, "steamId" ASC
+          ORDER BY
+            "portalCount" ${portalDir},
+            "totalScore" ASC,
+            "lastUpdated" ASC,
+            "steamId" ASC
         ) AS place,
         "steamName",
         "portalCount",

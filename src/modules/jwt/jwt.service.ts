@@ -20,11 +20,24 @@ export const createToken = (payload: TokenPayload): string =>
     expiresIn: TOKEN_TTL
   })
 
-export const verifyToken = (token: string): boolean => {
+const parseTokenPayload = (decoded: string | jwt.JwtPayload): TokenPayload | null => {
+  if (typeof decoded !== 'object' || decoded === null) {
+    return null
+  }
+
+  const steamId = decoded.steamId
+  if (typeof steamId !== 'string' || steamId.length === 0) {
+    return null
+  }
+
+  return { steamId }
+}
+
+export const verifyAndDecodeToken = (token: string): TokenPayload | null => {
   try {
-    jwt.verify(token, getJwtSecret(), { algorithms: [JWT_ALGORITHM] })
-    return true
+    const decoded = jwt.verify(token, getJwtSecret(), { algorithms: [JWT_ALGORITHM] })
+    return parseTokenPayload(decoded)
   } catch {
-    return false
+    return null
   }
 }
