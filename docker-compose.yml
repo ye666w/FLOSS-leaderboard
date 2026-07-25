@@ -2,6 +2,8 @@ services:
   db:
     image: postgres:16
     container_name: leaderboard-db
+    mem_limit: 320m
+    memswap_limit: 640m
     restart: always
     environment:
       POSTGRES_DB: leaderboards
@@ -16,6 +18,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: leaderboard-api
+    mem_limit: 256m
+    memswap_limit: 512m
     restart: always
     depends_on:
       - db
